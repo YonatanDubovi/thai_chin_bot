@@ -6,13 +6,30 @@ import os
 #import threading
 #import time
 #import datetime
-#import logging
-#import sys
+import logging
+import sys
 
 print("Bot started.....")
+MODE = os.getenv("MODE")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
 
 TOKEN = os.getenv("TOKEN")
 dataSource = DataSource(os.environ.get("DATABASE_URL"))
+
+if MODE == "dev":
+    def run():
+        logger.info("Start in DEV mode")
+        updater.start_polling()
+elif MODE == "prod":
+    def run():
+        logger.info("Start in PROD mode")
+        updater.start_webhook(listen="0.0.0.0", port=int(os.environ.get("PORT", "8443")), url_path=TOKEN,
+                              webhook_url="https://{}.herokuapp.com/{}".format(os.environ.get("APP_NAME"), TOKEN))
+else:
+    logger.error("No mode specified!")
+    sys.exit(1)
+
 
 def start_command(update, context):
     """Call start function"""
@@ -50,5 +67,5 @@ if __name__ == '__main__':
     updater.dispatcher.add_handler(MessageHandler(Filters.contact, phone_number_handler))
     updater.dispatcher.add_handler(MessageHandler(Filters.location, location_handler))
     dataSource.create_tables()
-    updater.start_polling()
+    run()
     updater.idle()
